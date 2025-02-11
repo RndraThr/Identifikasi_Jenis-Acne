@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deteksi Wajah</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom styling untuk menyembunyikan hasil deteksi secara default */
+    #hasilDeteksi {
+      display: none;
+    }
+
+    /* Styling untuk kamera */
+    #camera {
+      display: none;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 h-screen">
+
+  <!-- Container utama untuk deteksi dan hasil -->
+  <div class="container mx-auto p-8 h-full">
+
+    <!-- Bagian kiri: Deteksi Wajah (Kamera dan Unggah Gambar) -->
+    <div class="flex flex-col md:flex-row bg-white shadow-xl rounded-lg overflow-hidden h-full">
+
+      <!-- Kolom Deteksi Wajah -->
+      <div class="md:w-1/2 p-6 flex flex-col justify-center items-center bg-teal-600 text-white">
+        <h1 class="text-3xl font-bold mb-6">Deteksi Wajah</h1>
+
+        <!-- Bagian Kamera -->
+        <div class="w-full mb-6">
+          <video id="camera" class="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center"></video>
+          <button id="cameraBtn"
+            class="w-full mt-4 bg-white text-teal-600 py-2 px-4 rounded hover:bg-gray-200 transition">
+            Buka Kamera
+          </button>
+          <button id="captureBtn"
+            class="w-full mt-4 bg-white text-teal-600 py-2 px-4 rounded hover:bg-gray-200 transition"
+            style="display:none;">
+            Ambil Gambar
+          </button>
+          <canvas id="canvas" class="hidden"></canvas>
+        </div>
+
+        <!-- Bagian Upload Gambar -->
+        <div class="w-full mb-6">
+          <input type="file" id="fileInput"
+            class="w-full py-3 px-4 border-2 border-gray-300 rounded-lg bg-white text-gray-700" />
+        </div>
+
+        <!-- Tombol Submit -->
+        <button id="submitBtn"
+          class="bg-white text-blue-500 py-3 px-6 rounded-lg hover:text-white  hover:bg-blue-500 transition mt-4">
+          Submit
+        </button>
+      </div>
+
+      <!-- Kolom Hasil Deteksi Wajah -->
+      <div id="hasilDeteksi" class="md:w-1/2 p-6 flex flex-col justify-center">
+        <h1 class="text-3xl font-bold mb-6 text-teal-700">Hasil Deteksi Wajah</h1>
+
+        <div class="flex space-x-6">
+          <!-- Gambar Deteksi -->
+          <div class="w-1/3 h-48 bg-gray-200 border-2 border-gray-300 rounded-lg overflow-hidden">
+            <img src="#" alt="Foto Deteksi" class="w-full h-full object-cover" id="detectedImage">
+          </div>
+
+          <!-- Informasi Deteksi -->
+          <div class="flex-1">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Nama Penyakit</h2>
+            <p class="text-gray-700 mb-4 font-semibold text-xl" id="penyakitNama">Nama penyakit akan muncul di sini</p>
+
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Penyebab</h3>
+            <p class="text-gray-700 mb-4" id="penyebabDeskripsi">Penyebab akan muncul di sini</p>
+
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Solusi</h3>
+            <p class="text-gray-700" id="solusiDeskripsi">Solusi akan muncul di sini</p>
+          </div>
+        </div>
+
+        <!-- Tombol Reset (diposisikan di sebelah kanan) -->
+        <div class="mt-8 text-right">
+          <button id="resetBtn" class="bg-red-500 text-white py-3 px-6 rounded-lg hover:bg-red-600 transition">
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Mengaktifkan kamera
+    const cameraBtn = document.getElementById('cameraBtn');
+    const captureBtn = document.getElementById('captureBtn');
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('canvas');
+    const detectedImage = document.getElementById('detectedImage');
+
+    cameraBtn.addEventListener('click', () => {
+      video.style.display = 'block';
+      cameraBtn.style.display = 'none';
+      captureBtn.style.display = 'block';
+
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          video.srcObject = stream;
+          video.play();
+        })
+        .catch(err => {
+          console.error('Error:', err);
+        });
+    });
+
+    captureBtn.addEventListener('click', () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      const dataUrl = canvas.toDataURL('image/png');
+      detectedImage.src = dataUrl;  // Tampilkan gambar di hasil deteksi
+      video.srcObject.getTracks().forEach(track => track.stop());  // Matikan kamera setelah gambar diambil
+      video.style.display = 'none';
+      captureBtn.style.display = 'none';
+      cameraBtn.style.display = 'block';
+    });
+
+    // Tampilkan gambar yang diunggah oleh pengguna
+    const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', function () {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          detectedImage.src = e.target.result;  // Tampilkan gambar yang diunggah
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Fungsi untuk submit gambar ke backend
+    document.getElementById('submitBtn').addEventListener('click', function () {
+      let file = fileInput.files[0];
+
+      if (!file) {
+        const dataUrl = canvas.toDataURL('image/png');
+        file = dataURLtoBlob(dataUrl);  // Ambil gambar dari kamera
+      }
+
+      let formData = new FormData();
+      formData.append('file', file);
+
+      // Kirim file ke backend menggunakan fetch API
+      fetch('/predict', {
+        method: 'POST',
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('hasilDeteksi').style.display = 'block';
+          document.getElementById('penyakitNama').textContent = data.penyakitNama;
+          document.getElementById('penyebabDeskripsi').textContent = data.penyebabDeskripsi;
+          document.getElementById('solusiDeskripsi').textContent = data.solusiDeskripsi;
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+    });
+
+    // Fungsi reset tampilan
+    document.getElementById('resetBtn').addEventListener('click', function () {
+      document.getElementById('hasilDeteksi').style.display = 'none';
+      detectedImage.src = "#";  // Reset gambar
+    });
+
+    // Konversi dataURL ke Blob untuk submit file
+    function dataURLtoBlob(dataurl) {
+      const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], { type: mime });
+    }
+  </script>
+
+</body>
+
+</html>
